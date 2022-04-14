@@ -16,10 +16,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
-#define _PAGE_READ          (1<<5)
-#define pte_read(pte)		(pte_val(pte) & _PAGE_READ)
-#define _PAGE_WRITE         (1<<4)
-#define pte_write(pte)		(pte_val(pte) & _PAGE_WRITE)
 extern long (*farfetch_ptr)(unsigned int cmd, void __user *addr,
 			    pid_t target_pid, unsigned long target_addr,
 			    size_t len);
@@ -88,18 +84,17 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	offset = offset_in_page(target_addr);
 
 	if (cmd == FAR_READ) {
-		if (!pte_read(pte))
-			return -EPERM;
-		if ((failed_bytes = copy_to_user(addr, pageaddr + offset,len)))
+		if ((failed_bytes = copy_to_user(addr, pageaddr + offset, min(PAGE_SIZE - offset, len))))
 			return -EFAULT;
 	} else if (cmd == FAR_WRITE) {
 		if (!pte_write(pte))
-			return -EPERM;
-		if ((failed_bytes = copy_from_user(pageaddr + offset, addr, len)))
 			return -EFAULT;
+		if ((failed_bytes = copy_from_user(pageaddr + offset, addr, min(PAGE_SIZE - offset, len))))
+			return -EFAULT;
+		set_page_dirty_lock(targetpage);
 	}
 
-	return len - failed_bytes;
+	return min(PAGE_SIZE - offset, len) - failed_bytes;
 }
 
 int farfetch_init(void)
