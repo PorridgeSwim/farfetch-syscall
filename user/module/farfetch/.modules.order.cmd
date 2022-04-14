@@ -1,0 +1,1 @@
+cmd_/home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/modules.order := {   echo /home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/farfetch.ko; :; } | awk '!x[$$0]++' - > /home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/modules.order
