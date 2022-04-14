@@ -68,31 +68,32 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	targetpage = pte_page(pte);
 	kernel_address = page_address(targetpage);
 	offset = offset_in_page(target_addr);
+	get_page(targetpage);
 
-	// if ((cmd == FAR_READ) && (pte_read(pte))) {
-	// 	if(copy_to_user(addr, kernel_address + offset, len))
-	// 		return -EFAULT;
-	// } else if ((cmd == FAR_WRITE) && (pte_write(pte))) {
-	// 	if(copy_from_user(kernel_address + offset, addr, len))
-	// 		return -EFAULT;
-	// 	set_page_dirty_lock(targetpage);
-	// }
-	// put_page(targetpage);
-
-	if (cmd == FAR_READ) {
-		if (!pte_read(pte))
-			return -EPERM;
-		if ((failed_bytes = copy_to_user(addr, kernel_address + offset,len)))
+	if ((cmd == FAR_READ) && (pte_read(pte))) {
+		if((failed_bytes = copy_to_user(addr, kernel_address + offset, len)))
 			return -EFAULT;
-	} else if (cmd == FAR_WRITE) {
-		if (!pte_write(pte))
-			return -EPERM;
-		if ((failed_bytes = copy_from_user(kernel_address + offset, addr, len)))
+	} else if ((cmd == FAR_WRITE) && (pte_write(pte))) {
+		if((failed_bytes = copy_from_user(kernel_address + offset, addr, len)))
 			return -EFAULT;
+		set_page_dirty_lock(targetpage);
 	}
+	put_page(targetpage);
+
+	// if (cmd == FAR_READ) {
+	// 	if (!pte_read(pte))
+	// 		return -EPERM;
+	// 	if ((failed_bytes = copy_to_user(addr, kernel_address + offset,len)))
+	// 		return -EFAULT;
+	// } else if (cmd == FAR_WRITE) {
+	// 	if (!pte_write(pte))
+	// 		return -EPERM;
+	// 	if ((failed_bytes = copy_from_user(kernel_address + offset, addr, len)))
+	// 		return -EFAULT;
+	// }
 
 
-	return 0;
+	return len - failed_bytes;
 }
 
 int farfetch_init(void)
