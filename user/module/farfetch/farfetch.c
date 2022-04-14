@@ -83,6 +83,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	pageaddr = page_address(targetpage);
 	offset = offset_in_page(target_addr);
 
+	pr_info("len is %zu and pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, target_addr, offset, PAGE_SIZE);
 	if (cmd == FAR_READ) {
 		if ((failed_bytes = copy_to_user(addr, pageaddr + offset, min(PAGE_SIZE - offset, len))))
 			return -EFAULT;
