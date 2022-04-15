@@ -6,15 +6,15 @@
 #include <linux/farfetch.h>
 
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
-#include <linux/fs.h> 
+#include <linux/uaccess.h>
+#include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/proc_fs.h>
 #include <linux/pid.h>
 #include <linux/pgtable.h>
 #include <linux/mm.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 extern long (*farfetch_ptr)(unsigned int cmd, void __user *addr,
 			    pid_t target_pid, unsigned long target_addr,
@@ -30,7 +30,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	struct task_struct *targettask;
 	struct mm_struct *targetmm;
 	struct page *targetpage;
-	void * pageaddr;
+	void *pageaddr;
 	long failed_bytes;
 	unsigned long offset, nr_pages;
 	int is_root, is_self, ret, i;
