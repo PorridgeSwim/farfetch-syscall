@@ -87,14 +87,13 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		if (i >  0)
 			offset = 0;
 
-		pr_info("len is %zu and pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, target_addr, offset, PAGE_SIZE);
+		pr_info("len is %zu, copied is %lu, pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, copied, target_addr, offset, PAGE_SIZE);
 		if (cmd == FAR_READ) {
-			if ((failed_bytes = copy_to_user(addr + copied, pageaddr + offset, min(PAGE_SIZE - offset, len)))) {
+			if ((failed_bytes = copy_to_user(addr + copied, pageaddr + offset, min(PAGE_SIZE - offset, len - copied)))) {
 				put_page(&targetpage[i]);
 				return -EFAULT;
 			}
 			else{
-				len -= PAGE_SIZE - offset;
 				copied += PAGE_SIZE - offset;
 			}
 		} else if (cmd == FAR_WRITE) {
@@ -102,12 +101,11 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 			// 	put_page(targetpage);
 			// 	return -EFAULT;
 			// }
-			if ((failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len)))) {
+			if ((failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len - copied)))) {
 				put_page(&targetpage[i]);
 				return -EFAULT;
 			}
 			else{
-				len -= PAGE_SIZE - offset;
 				copied += PAGE_SIZE - offset;
 			}
 			set_page_dirty_lock(&targetpage[i]);
@@ -116,7 +114,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 
 	}
 
-	return min(PAGE_SIZE - offset, len);
+	return min(copied, len);
 }
 
 int farfetch_init(void)

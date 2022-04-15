@@ -1,0 +1,1 @@
+cmd_/home/aster233/hw/hw7-22-Flowers/user/module/farfetch/farfetch.mod := { echo  /home/aster233/hw/hw7-22-Flowers/user/module/farfetch/farfetch.o;  echo; } > /home/aster233/hw/hw7-22-Flowers/user/module/farfetch/farfetch.mod
