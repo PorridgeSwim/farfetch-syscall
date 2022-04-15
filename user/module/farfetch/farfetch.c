@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <asm/page.h>
 #include <linux/pgtable.h>
+#include <linux/slab.h>
 
 extern long (*farfetch_ptr)(unsigned int cmd, void __user *addr,
 			    pid_t target_pid, unsigned long target_addr,
@@ -29,7 +30,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	struct pid *targetpid;
 	struct task_struct *targettask;
 	struct mm_struct *targetmm;
-	struct page *targetpage;
+	struct page **targetpage;
 	void *pageaddr;
 	long failed_bytes;
 	unsigned long offset, nr_pages;
@@ -72,49 +73,53 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 			nr_pages = 1 + (len - (PAGE_SIZE - offset))/PAGE_SIZE;
 	}
 
+	targetpage = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	if (targetpage == NULL)
+		return -ENOMEM;
+
 	ret = get_user_pages_remote(targetmm, target_addr, nr_pages, 
-					gup_flags, &targetpage, &vma, NULL); //number of page
+					gup_flags, targetpage, &vma, NULL); //number of page
 	
 	if (ret <= 0) {
-		return -EFAULT;
+		kfree(targetpage);
+		return ret;
 	} else if (ret < nr_pages) {
 		len = ret * PAGE_SIZE - offset; //length we get
 	}
 	pr_info("ret = %lu\n", ret);
 	copied = 0;
 	for (i = 0; i < ret; i++) {
-		pageaddr = page_address(&targetpage[i]);
+		pageaddr = page_address(targetpage[i]);
 		if (i >  0)
 			offset = 0;
 
 		pr_info("len is %zu, copied is %lu, pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, copied, target_addr, offset, PAGE_SIZE);
 		if (cmd == FAR_READ) {
 			if ((failed_bytes = copy_to_user(addr + copied, pageaddr + offset, min(PAGE_SIZE - offset, len - copied)))) {
-				put_page(&targetpage[i]);
+				put_page(targetpage[i]);
+				kfree(targetpage);
 				return -EFAULT;
 			}
 			else{
-				copied += PAGE_SIZE - offset;
+				copied += min(PAGE_SIZE - offset, len - copied);
 			}
 		} else if (cmd == FAR_WRITE) {
-			// if (!pte_write(pte)) { //always can write
-			// 	put_page(targetpage);
-			// 	return -EFAULT;
-			// }
 			if ((failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len - copied)))) {
-				put_page(&targetpage[i]);
+				put_page(targetpage[i]);
+				kfree(targetpage);
 				return -EFAULT;
 			}
 			else{
-				copied += PAGE_SIZE - offset;
+				copied += min(PAGE_SIZE - offset, len - copied);
 			}
-			set_page_dirty_lock(&targetpage[i]);
+			set_page_dirty_lock(targetpage[i]);
 		}
-		put_page(&targetpage[i]);
+		put_page(targetpage[i]);
 
 	}
 
-	return min(copied, len);
+	kfree(targetpage);
+	return copied;
 }
 
 int farfetch_init(void)
