@@ -6,15 +6,15 @@
 #include <linux/farfetch.h>
 
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
-#include <linux/fs.h> 
+#include <linux/uaccess.h>
+#include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/proc_fs.h>
 #include <linux/pid.h>
 #include <linux/pgtable.h>
 #include <linux/mm.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 extern long (*farfetch_ptr)(unsigned int cmd, void __user *addr,
 			    pid_t target_pid, unsigned long target_addr,
@@ -31,7 +31,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	struct task_struct *targettask;
 	struct mm_struct *targetmm;
 	struct page *targetpage;
-	void * pageaddr;
+	void *pageaddr;
 	long failed_bytes;
 	unsigned long offset;
 	int is_root, is_self;
@@ -88,9 +88,10 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	pageaddr = page_address(targetpage);
 	offset = offset_in_page(target_addr);
 
-	pr_info("len is %zu and pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, target_addr, offset, PAGE_SIZE);
 	if (cmd == FAR_READ) {
-		if ((failed_bytes = copy_to_user(addr, pageaddr + offset, min(PAGE_SIZE - offset, len)))) {
+		failed_bytes = copy_to_user(addr, pageaddr + offset,
+							min(PAGE_SIZE - offset, len));
+		if (failed_bytes) {
 			put_page(targetpage);
 			return -EFAULT;
 		}
@@ -99,7 +100,9 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 			put_page(targetpage);
 			return -EFAULT;
 		}
-		if ((failed_bytes = copy_from_user(pageaddr + offset, addr, min(PAGE_SIZE - offset, len)))) {
+		failed_bytes = copy_from_user(pageaddr + offset, addr,
+							min(PAGE_SIZE - offset, len));
+		if (failed_bytes) {
 			put_page(targetpage);
 			return -EFAULT;
 		}
