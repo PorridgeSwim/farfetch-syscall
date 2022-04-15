@@ -33,10 +33,12 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	void *pageaddr;
 	long failed_bytes;
 	unsigned long offset, nr_pages;
-	int is_root, is_self, ret, i;
+	int is_root, is_self, i;
+	unsigned long copied;
 
 	struct vm_area_struct *vma;
 	unsigned int gup_flags = FOLL_FORCE;
+	unsigned long ret;
 
 	if (cmd == FAR_WRITE) 
 		gup_flags |= FOLL_COW;
@@ -62,8 +64,8 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 
 	targetmm = targettask->mm;
 	put_task_struct(targettask);
-
-	if (len > PAGE_SIZE - offset) {
+	offset = offset_in_page(target_addr);
+	if (len > PAGE_SIZE - offset) { //ceil the page
 		if ((len - (PAGE_SIZE - offset))%PAGE_SIZE != 0)
 			nr_pages = 2 + (len - (PAGE_SIZE - offset))/PAGE_SIZE;
 		else
@@ -71,37 +73,46 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	}
 
 	ret = get_user_pages_remote(targetmm, target_addr, nr_pages, 
-					gup_flags, &targetpage, &vma, NULL);
+					gup_flags, &targetpage, &vma, NULL); //number of page
 	
 	if (ret <= 0) {
 		return -EFAULT;
 	} else if (ret < nr_pages) {
-		len = ret * PAGE_SIZE - offset;
+		len = ret * PAGE_SIZE - offset; //length we get
 	}
-
+	pr_info("ret = %lu\n", ret);
+	copied = 0;
 	for (i = 0; i < ret; i++) {
-
-		pageaddr = page_address(targetpage);
-		offset = offset_in_page(target_addr);
+		pageaddr = page_address(&targetpage[i]);
+		if (i >  0)
+			offset = 0;
 
 		pr_info("len is %zu and pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, target_addr, offset, PAGE_SIZE);
 		if (cmd == FAR_READ) {
-			if ((failed_bytes = copy_to_user(addr, pageaddr + offset, min(PAGE_SIZE - offset, len)))) {
-				put_page(targetpage);
+			if ((failed_bytes = copy_to_user(addr + copied, pageaddr + offset, min(PAGE_SIZE - offset, len)))) {
+				put_page(&targetpage[i]);
 				return -EFAULT;
+			}
+			else{
+				len -= PAGE_SIZE - offset;
+				copied += PAGE_SIZE - offset;
 			}
 		} else if (cmd == FAR_WRITE) {
-			if (!pte_write(pte)) {
-				put_page(targetpage);
+			// if (!pte_write(pte)) { //always can write
+			// 	put_page(targetpage);
+			// 	return -EFAULT;
+			// }
+			if ((failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len)))) {
+				put_page(&targetpage[i]);
 				return -EFAULT;
 			}
-			if ((failed_bytes = copy_from_user(pageaddr + offset, addr, min(PAGE_SIZE - offset, len)))) {
-				put_page(targetpage);
-				return -EFAULT;
+			else{
+				len -= PAGE_SIZE - offset;
+				copied += PAGE_SIZE - offset;
 			}
-			set_page_dirty_lock(targetpage);
+			set_page_dirty_lock(&targetpage[i]);
 		}
-		put_page(targetpage);
+		put_page(&targetpage[i]);
 
 	}
 
