@@ -69,19 +69,19 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		return -EINVAL;
 
 	if (pgd_none(*pgd) || pgd_bad(*pgd))
-		return -1;
+		return -EFAULT;
 	p4d = p4d_offset(pgd, target_addr);
 	if (p4d_none(*p4d) || p4d_bad(*p4d))
-		return -1;
+		return -EFAULT;
 	pud = pud_offset(p4d, target_addr);
 	if (pud_none(*pud) || pud_bad(*pud))
-		return -1;
+		return -EFAULT;
 	pmd = pmd_offset(pud, target_addr);
 	if (pmd_none(*pmd) || pmd_bad(*pmd))
-		return -1;
+		return -EFAULT;
 	ptep = pte_offset_map(pmd, target_addr);
 	if (!ptep)
-		return -1;
+		return -EFAULT;
 	pte = *ptep;
 	pte_unmap(ptep);
 	targetpage = pte_page(pte);
