@@ -77,7 +77,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	targetpage = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
 	if (targetpage == NULL)
 		return -ENOMEM;
-
+	pr_info("here\n");
 	ret = get_user_pages_remote(targetmm, target_addr, nr_pages, 
 					gup_flags, targetpage, &vma, NULL); //number of page
 	
@@ -104,8 +104,8 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 				pr_info("copy_to_user fail %d", i);
 				for (j = i; j < ret; j++)
 					put_page(targetpage[j]);
-				kfree(targetpage);
 				kunmap(targetpage[i]);
+				kfree(targetpage);
 				return -EFAULT;
 			}
 			else{
@@ -117,8 +117,8 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 				pr_info("copy_from_user fail %d", i);
 				for (j = i; j < ret; j++)
 					put_page(targetpage[j]);
-				kfree(targetpage);
 				kunmap(targetpage[i]);
+				kfree(targetpage);
 				return -EFAULT;
 			}
 			else{
@@ -132,7 +132,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 
 	}
 
-	kfree(targetpage);
+	//kfree(targetpage);
 	return copied;
 }
 
