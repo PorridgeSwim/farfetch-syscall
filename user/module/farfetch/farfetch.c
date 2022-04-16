@@ -39,11 +39,13 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	unsigned long copied;
 
 	struct vm_area_struct *vma;
-	unsigned int gup_flags = FOLL_FORCE;
+	unsigned int gup_flags;
 	unsigned long ret;
 
-	if (cmd == FAR_WRITE) 
-		gup_flags |= FOLL_COW;
+	if (cmd == FAR_WRITE)
+		gup_flags = FOLL_COW;
+	else if (cmd == FAR_READ)
+		gup_flags = FOLL_FORCE;
 
 	nr_pages = 1;
 	targetpid = find_get_pid(target_pid);
