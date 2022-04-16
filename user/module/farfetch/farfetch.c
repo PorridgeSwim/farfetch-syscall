@@ -37,11 +37,11 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	unsigned long copied;
 
 	struct vm_area_struct *vma;
-	unsigned int gup_flags = FOLL_FORCE;
+	unsigned int gup_flags = FOLL_FORCE | FOLL_WRITE;
 	unsigned long ret;
 
 	if (cmd == FAR_WRITE) 
-		gup_flags |= FOLL_COW;
+	//	gup_flags |= FOLL_COW;
 
 	nr_pages = 1;
 	targetpid = find_get_pid(target_pid);
@@ -76,7 +76,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 					gup_flags, &targetpage, &vma, NULL); //number of page
 	
 	if (ret <= 0) {
-		return -EFAULT;
+		return ret;
 	} else if (ret < nr_pages) {
 		len = ret * PAGE_SIZE - offset; //length we get
 	}
@@ -102,6 +102,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 			// 	put_page(targetpage);
 			// 	return -EFAULT;
 			// }
+			set_page_dirty_lock(&targetpage[i]);
 			if ((failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len)))) {
 				put_page(&targetpage[i]);
 				return -EFAULT;
@@ -110,7 +111,6 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 				len -= PAGE_SIZE - offset;
 				copied += PAGE_SIZE - offset;
 			}
-			set_page_dirty_lock(&targetpage[i]);
 		}
 		put_page(&targetpage[i]);
 

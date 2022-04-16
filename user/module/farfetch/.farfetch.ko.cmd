@@ -1,0 +1,1 @@
+cmd_/home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/farfetch.ko := ld -r -m elf_x86_64 --build-id=sha1  -T scripts/module.lds -o /home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/farfetch.ko /home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/farfetch.o /home/debbie/Desktop/CS/hw7-22-Flowers/user/module/farfetch/farfetch.mod.o;  true
