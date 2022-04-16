@@ -34,13 +34,15 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	void *pageaddr;
 	long failed_bytes;
 	unsigned long offset;
-	int is_root, is_self;
+	int is_root;
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pud_t *pud;
 	p4d_t *p4d;
 	pte_t *ptep, pte;
 
+	if (target_pid < 0)
+		return -ESRCH;
 	targetpid = find_get_pid(target_pid);
 	targettask = get_pid_task(targetpid, PIDTYPE_PID);
 	put_pid(targetpid);
@@ -48,8 +50,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		return -ESRCH;
 
 	is_root = !from_kuid_munged(current_user_ns(), task_euid(current));
-	is_self = uid_eq(task_euid(current), task_uid(targettask));
-	if (!is_root && !is_self) {
+	if (!is_root) {
 		put_task_struct(targettask);
 		return -EPERM;
 	}
