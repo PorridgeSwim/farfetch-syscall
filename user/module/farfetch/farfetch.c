@@ -42,6 +42,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	unsigned int gup_flags = FOLL_FORCE;
 	unsigned long ret;
 
+	pr_info("start");
 	if (cmd == FAR_WRITE) 
 		gup_flags |= FOLL_COW;
 
@@ -73,7 +74,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		else
 			nr_pages = 1 + (len - (PAGE_SIZE - offset))/PAGE_SIZE;
 	}
-
+	pr_info("l77\n");
 	targetpage = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
 	if (targetpage == NULL)
 		return -ENOMEM;
@@ -131,7 +132,7 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		put_page(targetpage[i]);
 
 	}
-
+	pr_info("end\n");
 	//kfree(targetpage);
 	return copied;
 }
