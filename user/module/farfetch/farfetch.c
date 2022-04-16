@@ -17,6 +17,7 @@
 #include <linux/pgtable.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
+#include <linux/delay.h>
 
 extern long (*farfetch_ptr)(unsigned int cmd, void __user *addr,
 			    pid_t target_pid, unsigned long target_addr,
@@ -34,18 +35,20 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 	struct page **targetpage;
 	void *pageaddr;
 	long failed_bytes;
-	unsigned long offset, nr_pages;
+	unsigned long nr_pages, offset;
+	//size_t offset;
 	int is_root, is_self, i, j;
 	unsigned long copied;
 
-	struct vm_area_struct *vma;
-	unsigned int gup_flags;
+	struct vm_area_struct *vma = NULL;
+	unsigned int gup_flags = FOLL_FORCE;
 	unsigned long ret;
 
-	if (cmd == FAR_WRITE)
-		gup_flags = FOLL_COW;
-	else if (cmd == FAR_READ)
-		gup_flags = FOLL_FORCE;
+
+	pr_info("start");
+	if (cmd == FAR_WRITE) 
+		gup_flags |= FOLL_WRITE;
+
 
 	nr_pages = 1;
 	targetpid = find_get_pid(target_pid);
@@ -75,8 +78,8 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		else
 			nr_pages = 1 + (len - (PAGE_SIZE - offset))/PAGE_SIZE;
 	}
-
-	targetpage = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	pr_info("l77\n");
+	targetpage = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (targetpage == NULL)
 		return -ENOMEM;
 	pr_info("here\n");
@@ -102,7 +105,8 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 
 		pr_info("len is %zu, copied is %lu, pageaddr is %lu, offset is %lu, pagesize = %lu\n", len, copied, target_addr, offset, PAGE_SIZE);
 		if (cmd == FAR_READ) {
-			if ((failed_bytes = copy_to_user(addr + copied, pageaddr + offset, min(PAGE_SIZE - offset, len - copied)))) {
+			failed_bytes = copy_to_user(addr + copied, pageaddr + offset, min(PAGE_SIZE - offset, len - copied));
+			if (failed_bytes) {
 				pr_info("copy_to_user fail %d", i);
 				for (j = i; j < ret; j++)
 					put_page(targetpage[j]);
@@ -115,7 +119,8 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 				pr_info("copy_to_user succedd %d", i);
 			}
 		} else if (cmd == FAR_WRITE) {
-			if ((failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len - copied)))) {
+			failed_bytes = copy_from_user(pageaddr + offset, addr + copied, min(PAGE_SIZE - offset, len - copied));
+			if (failed_bytes) {
 				pr_info("copy_from_user fail %d", i);
 				for (j = i; j < ret; j++)
 					put_page(targetpage[j]);
@@ -133,8 +138,10 @@ long farfetch(unsigned int cmd, void __user *addr, pid_t target_pid,
 		put_page(targetpage[i]);
 
 	}
-
-	//kfree(targetpage);
+	pr_info("end\n");
+	kfree(targetpage);
+	// msleep(200);
+	pr_info("copied %lu\n", copied);
 	return copied;
 }
 
