@@ -1,4 +1,4 @@
-Answers for parts  1 - 2
+﻿Answers for parts  1 - 2
 Enter your answers in the designated locations. Do NOT remove lines that start
 with '=' signs. Removing these lines will break our grading scripts and will
 result in 0 points.
@@ -10,7 +10,12 @@ about 80 words.
 Observe and explain any difference in behavior when using farfetchd on the
 provided mmap target versus the malloc target.
 
-    /* TODO */
+  When trying to fetch 4096 bytes, mmap fetched the full page (4096 bytes),
+while malloc only fetched 3424 bytes.
+Because when passing NULL as the addr to mmap(), it will allocate a new page
+to the area, so the address's offset is 0, so we can fetchthe whole page.
+On the other hand, malloc() will assign memory with offset according to the
+previously defined *area pointer.
 
 =================================== P1Q1 end ===================================
 
@@ -18,14 +23,19 @@ provided mmap target versus the malloc target.
 Observe and explain any difference in behavior when using farfetchd on the
 provided mmap target versus the fork target (in both the parent and child).
 
-    /* TODO */
+Both FAR_READ and FAR_WRITE can be performed in mmap, but the fork test can
+only do FAR_READ operation. This is because when trying to write after forking,
+the Copy-on-Write action will be triggered, and writing on the previous address
+is not permitted.
 
 =================================== P1Q2 end ===================================
 
 ================================== P1Q3 start ==================================
 Observe and explain the behavior of farfetchd on the strlit target.
 
-    /* TODO */
+    strlit returns a "bad address" error on FAR_WRITE. The 'area' points to a
+    static variabe, which is located in a non-writable memory. As a result,
+    modifying the characters is not permitted.
 
 =================================== P1Q3 end ===================================
 
@@ -34,7 +44,24 @@ Try going through Session 2 without using setarch -R, which is used to disable
 ASLR for the process; that is, run the twecho target directly. Briefly describe
 what ASLR is, and explain how it affects finding the argv strings.
 
-    /* TODO */
+   ASLR randomize the offset of memory layout to prevent buffer-overflow.
+With "setarch -R", both FAR_WRITE and FAR_READ function. Without "setarch -R",
+the program fails on FAR_READ with -EFAULT.
+The argv strings aim to find the last 4096 bytes in the memory layout. When
+ASLR is disabled, the stack will be located on exactly to the end of task's
+memory layout. We can fetch the last 4096 bytes of the task. When it is
+enabled, the last 4096 bytes may not be mapped properly.
+
+Without "setarch -R"
+7f1530c97000-7f1530c98000 rw-p 00000000 00:00 0
+7ffd49cf9000-7ffd49d1a000 rw-p 00000000 00:00 0                          [stack]
+7ffd49db1000-7ffd49db5000 r--p 00000000 00:00 0                          [vvar]
+7ffd49db5000-7ffd49db7000 r-xp 00000000 00:00 0                          [vdso]
+
+With "setarch-R"
+7ffff7ffe000-7ffff7fff000 rw-p 00000000 00:00 0
+7ffffffde000-7ffffffff000 rw-p 00000000 00:00 0                          [stack]
+
 
 =================================== P1Q4 end ===================================
 
@@ -43,6 +70,13 @@ Ensure that the behavior observed in Part 1 for the fork target is remedied;
 explain generally how the GUP logic handles this case. Feel free to reference
 line numbers in mm/gup.c.
 
-    /* TODO */
+    GUP logic used a flag “FOLL_COW”, which means the page is a COWed-page, to
+collaborate with “FOLL_FORCE” and “FOLL_WRITE”. When the kernel generate a
+COW page in function faultin_page, it set FOLL_COW to 1. When the kernel try to
+check write permission for a page, it calls can_follow_write_pte(). If pte_write
+returns true or FOLL_COW and FOLL_FORCE and the page dirty bit are all true
+(this is a COWed page), the function can_follow_write_pte() returns true.
+Consequently, the child process and the parent process can write to their pages
+separately.
 
 =================================== P2Q1 end ===================================
